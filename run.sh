@@ -30,12 +30,42 @@ read_var_from_file() {
     fi
 }
 
+# Function to setup SSH key with proper permissions
+setup_ssh_key() {
+    local key_path="$1"
+    local temp_key_path=""
+    
+    # If key is from /run/secrets, copy it to ~/.ssh/ directory
+    if echo "$key_path" | grep -q "^/run/secrets/"; then
+        # Ensure ~/.ssh directory exists with proper permissions
+        mkdir -p "$HOME/.ssh"
+        chmod 700 "$HOME/.ssh"
+        
+        temp_key_path="$HOME/.ssh/ssh_key_$$"
+        cp "$key_path" "$temp_key_path"
+        chmod 600 "$temp_key_path"
+        
+        # Verify permissions are correct for SSH
+        if [ "$(stat -c %a "$temp_key_path" 2>/dev/null || stat -f %Lp "$temp_key_path" 2>/dev/null)" != "600" ]; then
+            echo "Warning: SSH key permissions may not be secure"
+        fi
+        
+        echo "$temp_key_path"
+    else
+        # For regular paths, just set permissions
+        chmod 600 "$key_path"
+        echo "$key_path"
+    fi
+}
+
+# Read variables from files if _FILE versions exist
 read_var_from_file "LOCAL_PORT"
 read_var_from_file "REMOTE_PORT"
 read_var_from_file "REMOTE_SERVER_IP"
 read_var_from_file "SSH_BASTION_HOST"
 read_var_from_file "SSH_PORT"
 read_var_from_file "SSH_USER"
+read_var_from_file "SSH_KEY_PATH"
 
 if [ -z ${REMOTE_SERVER_IP+x} ]; then
     REMOTE_SERVER_IP="127.0.0.1"
@@ -54,14 +84,26 @@ if [ -z ${LOCAL_PORT+x} ] || [ -z ${REMOTE_PORT+x} ] || [ -z ${SSH_BASTION_HOST+
     exit 1
 fi
 
+# Check if SSH key file exists
 if [ ! -f "$SSH_KEY_PATH" ]; then
     echo "SSH key file not found at: $SSH_KEY_PATH"
     exit 1
 fi
 
-chmod 600 "$SSH_KEY_PATH"
+# Setup SSH key with proper permissions
+ACTUAL_SSH_KEY_PATH=$(setup_ssh_key "$SSH_KEY_PATH")
 
-echo "starting SSH proxy $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT on $SSH_USER@$SSH_BASTION_HOST:$SSH_PORT using key: $SSH_KEY_PATH"
+echo "starting SSH proxy $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT on $SSH_USER@$SSH_BASTION_HOST:$SSH_PORT using key: $ACTUAL_SSH_KEY_PATH"
+
+# Cleanup function for temporary files
+cleanup() {
+    if [ -n "$ACTUAL_SSH_KEY_PATH" ] && [ "$ACTUAL_SSH_KEY_PATH" != "$SSH_KEY_PATH" ]; then
+        rm -f "$ACTUAL_SSH_KEY_PATH"
+    fi
+}
+
+# Set trap to cleanup on exit
+trap cleanup EXIT
 
 /usr/bin/ssh \
 -NTC -o ServerAliveInterval=60 \
@@ -71,4 +113,4 @@ echo "starting SSH proxy $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT on $SSH_USER
 -L $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT \
 $SSH_USER@$SSH_BASTION_HOST \
 -p $SSH_PORT \
--i "$SSH_KEY_PATH"
+-i "$ACTUAL_SSH_KEY_PATH"
