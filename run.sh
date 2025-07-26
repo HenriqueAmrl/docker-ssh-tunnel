@@ -8,6 +8,30 @@
 # SSH_BASTION_HOST="bastion.host"
 # SSH_PORT=22 # defaults to 22
 # SSH_USER="tunnel_user"
+# SSH_KEY_PATH="/ssh_key/id_rsa" # defaults to /ssh_key/id_rsa
+
+# Function to read variable from file if _FILE version exists
+read_var_from_file() {
+    local var_name=$1
+    local file_var_name="${var_name}_FILE"
+    
+    if [ -n "${!file_var_name}" ]; then
+        if [ -f "${!file_var_name}" ]; then
+            local value=$(cat "${!file_var_name}" | tr -d '[:space:]')
+            eval "$var_name=\"$value\""
+        else
+            echo "File not found: ${!file_var_name}"
+            exit 1
+        fi
+    fi
+}
+
+read_var_from_file "LOCAL_PORT"
+read_var_from_file "REMOTE_PORT"
+read_var_from_file "REMOTE_SERVER_IP"
+read_var_from_file "SSH_BASTION_HOST"
+read_var_from_file "SSH_PORT"
+read_var_from_file "SSH_USER"
 
 if [ -z ${REMOTE_SERVER_IP+x} ]; then
     REMOTE_SERVER_IP="127.0.0.1"
@@ -17,12 +41,23 @@ if  [ -z ${SSH_PORT+x} ] ; then
     SSH_PORT="22"
 fi
 
+if [ -z ${SSH_KEY_PATH+x} ]; then
+    SSH_KEY_PATH="/ssh_key/id_rsa"
+fi
+
 if [ -z ${LOCAL_PORT+x} ] || [ -z ${REMOTE_PORT+x} ] || [ -z ${SSH_BASTION_HOST+x} ] || [ -z ${SSH_USER+x} ] ; then 
     echo "some vars are not set"; 
     exit 1
 fi
 
-echo "starting SSH proxy $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT on $SSH_USER@$SSH_BASTION_HOST:$SSH_PORT"
+if [ ! -f "$SSH_KEY_PATH" ]; then
+    echo "SSH key file not found at: $SSH_KEY_PATH"
+    exit 1
+fi
+
+chmod 600 "$SSH_KEY_PATH"
+
+echo "starting SSH proxy $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT on $SSH_USER@$SSH_BASTION_HOST:$SSH_PORT using key: $SSH_KEY_PATH"
 
 /usr/bin/ssh \
 -NTC -o ServerAliveInterval=60 \
@@ -32,4 +67,4 @@ echo "starting SSH proxy $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT on $SSH_USER
 -L $LOCAL_PORT:$REMOTE_SERVER_IP:$REMOTE_PORT \
 $SSH_USER@$SSH_BASTION_HOST \
 -p $SSH_PORT \
--i /ssh_key/id_rsa
+-i "$SSH_KEY_PATH"

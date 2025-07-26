@@ -12,7 +12,7 @@ services:
       - dbtunnel
 
   dbtunnel:
-    image: jujhars13/docker-ssh-tunnel
+    image: henriqueamrl/docker-ssh-tunnel
     restart: always
     expose:
       - "3306/tcp"
@@ -25,3 +25,42 @@ services:
       - SSH_PORT=22
     volumes:
       - ~/.ssh/example/dbtunnel:/ssh_key/id_rsa:ro
+
+  # Example using Docker secrets with _FILE variables
+  dbtunnel-secrets:
+    image: henriqueamrl/docker-ssh-tunnel
+    restart: always
+    expose:
+      - "3307/tcp"
+    environment:
+      - LOCAL_PORT_FILE=/run/secrets/local_port
+      - REMOTE_PORT_FILE=/run/secrets/remote_port
+      - REMOTE_SERVER_IP_FILE=/run/secrets/remote_server_ip
+      - SSH_BASTION_HOST_FILE=/run/secrets/ssh_bastion_host
+      - SSH_USER_FILE=/run/secrets/ssh_user
+      - SSH_PORT_FILE=/run/secrets/ssh_port
+      - SSH_KEY_PATH=/run/secrets/ssh_key
+    secrets:
+      - local_port
+      - remote_port
+      - remote_server_ip
+      - ssh_bastion_host
+      - ssh_user
+      - ssh_port
+      - ssh_key
+
+secrets:
+  local_port:
+    file: ./secrets/local_port
+  remote_port:
+    file: ./secrets/remote_port
+  remote_server_ip:
+    file: ./secrets/remote_server_ip
+  ssh_bastion_host:
+    file: ./secrets/ssh_bastion_host
+  ssh_user:
+    file: ./secrets/ssh_user
+  ssh_port:
+    file: ./secrets/ssh_port
+  ssh_key:
+    file: ~/.ssh/example/dbtunnel
