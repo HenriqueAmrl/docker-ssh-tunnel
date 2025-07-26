@@ -14,13 +14,17 @@
 read_var_from_file() {
     local var_name=$1
     local file_var_name="${var_name}_FILE"
+    local file_path=""
     
-    if [ -n "${!file_var_name}" ]; then
-        if [ -f "${!file_var_name}" ]; then
-            local value=$(cat "${!file_var_name}" | tr -d '[:space:]')
+    # Get the file path using eval to avoid indirect expansion
+    eval "file_path=\$$file_var_name"
+    
+    if [ -n "$file_path" ]; then
+        if [ -f "$file_path" ]; then
+            local value=$(cat "$file_path" | tr -d '[:space:]')
             eval "$var_name=\"$value\""
         else
-            echo "File not found: ${!file_var_name}"
+            echo "File not found: $file_path"
             exit 1
         fi
     fi
