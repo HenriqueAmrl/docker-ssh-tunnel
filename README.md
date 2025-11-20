@@ -44,12 +44,12 @@ SSH_PORT=2297
 
 SSH_USER="tunnel_user"
 
-# OPTIONAL defaults to /ssh_key/id_rsa
-# Can be used with Docker secrets: SSH_KEY_PATH=/run/secrets/ssh_key
-SSH_KEY_PATH="/path/to/your/private/key"
+# REQUIRED: One of the following must be set
+# SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----\n..." # direct key content
+# SSH_KEY_FILE="/path/to/your/private/key" # path to file containing key content
 ```
 
-Also be sure to inject/mount your private ssh key into the container to `/ssh_key/id_rsa` (default) or specify a custom path using `SSH_KEY_PATH`.
+You must provide the SSH key using either `SSH_KEY` (direct content) or `SSH_KEY_FILE` (path to file containing the key).
 
 ## Docker Secrets Support
 
@@ -63,7 +63,7 @@ REMOTE_SERVER_IP_FILE=/run/secrets/remote_server_ip
 SSH_BASTION_HOST_FILE=/run/secrets/ssh_bastion_host
 SSH_USER_FILE=/run/secrets/ssh_user
 SSH_PORT_FILE=/run/secrets/ssh_port
-SSH_KEY_PATH=/run/secrets/ssh_key
+SSH_KEY_FILE=/run/secrets/ssh_key
 ```
 
 The script will check for `_FILE` variables first. If a `_FILE` variable is set, it will read the value from the specified file. If not set, it will use the regular environment variable.
@@ -83,6 +83,7 @@ docker run -it --rm \
 -e SSH_BASTION_HOST=34.135.248.162 \
 -e REMOTE_SERVER_IP=aws-nlb-mongo-fake.internal-us-east-1.es.amazonaws.com \
 -e SSH_USER=ec2-user \
+-e SSH_KEY_FILE=/ssh_key/id_rsa \
 -v ~/.ssh/id_rsa:/ssh_key/id_rsa:ro \
 henriqueamrl/docker-ssh-tunnel
 
@@ -112,7 +113,7 @@ docker run -it --rm \
 -e SSH_BASTION_HOST_FILE=/run/secrets/ssh_bastion_host \
 -e SSH_USER_FILE=/run/secrets/ssh_user \
 -e SSH_PORT_FILE=/run/secrets/ssh_port \
--e SSH_KEY_PATH=/run/secrets/ssh_key \
+-e SSH_KEY_FILE=/run/secrets/ssh_key \
 --secret local_port \
 --secret remote_port \
 --secret remote_server_ip \
@@ -136,7 +137,7 @@ services:
       - SSH_BASTION_HOST_FILE=/run/secrets/ssh_bastion_host
       - SSH_USER_FILE=/run/secrets/ssh_user
       - SSH_PORT_FILE=/run/secrets/ssh_port
-      - SSH_KEY_PATH=/run/secrets/ssh_key
+      - SSH_KEY_FILE=/run/secrets/ssh_key
     secrets:
       - local_port
       - remote_port

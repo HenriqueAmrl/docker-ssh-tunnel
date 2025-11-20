@@ -23,6 +23,7 @@ services:
       - SSH_BASTION_HOST=24.342.228.122
       - SSH_USER=dbtunnel
       - SSH_PORT=22
+      - SSH_KEY_FILE=/ssh_key/id_rsa
     volumes:
       - ~/.ssh/example/dbtunnel:/ssh_key/id_rsa:ro
 
@@ -39,7 +40,7 @@ services:
       - SSH_BASTION_HOST_FILE=/run/secrets/ssh_bastion_host
       - SSH_USER_FILE=/run/secrets/ssh_user
       - SSH_PORT_FILE=/run/secrets/ssh_port
-      - SSH_KEY_PATH=/run/secrets/ssh_key
+      - SSH_KEY_FILE=/run/secrets/ssh_key
     secrets:
       - local_port
       - remote_port
